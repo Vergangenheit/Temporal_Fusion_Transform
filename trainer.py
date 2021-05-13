@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 
 
 def main(exp_name: str, data_csv_path: str):
-    config = ExperimentConfig(exp_name, 'outputs')
-    data_formatter = config.make_data_formatter()
+    exp_config = ExperimentConfig(exp_name, 'outputs')
+    data_formatter = exp_config.make_data_formatter()
     print("*** Training from defined parameters for {} ***".format('electricity'))
     print("Loading & splitting data...")
     raw_data: DataFrame = pd.read_csv(data_csv_path, index_col=0)
