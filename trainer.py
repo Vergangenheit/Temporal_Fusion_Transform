@@ -1,3 +1,4 @@
+import torch
 import pandas as pd
 from torch.utils.data import DataLoader, Dataset, Subset
 import numpy as np
@@ -9,18 +10,92 @@ from expt_settings.configs import ExperimentConfig, config
 import importlib
 from data_formatters import utils
 import torch.optim as optim
+from torch import device
 from torch import Tensor
 from pandas import DataFrame
 from typing import List, Dict
 import argparse
 from argparse import ArgumentParser, Namespace
 import matplotlib.pyplot as plt
+import os
+
+
+class Trainer:
+    def __init__(self, model: TFT, loss: QuantileLoss, optimizer: optim.Adam, exp_config: ExperimentConfig):
+        self.model = model
+        self.loss = loss
+        self.optimizer = optimizer
+        self.device: device = model.device
+        self.train_losses = []
+        self.val_losses = []
+        self.counter: int = 0
+        # self.mse_val: float = 0
+        self.min_val_mse: float = 9999
+        self.exp_config = exp_config
+
+    def train(self, train_loader: DataLoader, val_loader: DataLoader, epochs: int):
+        n_iter: int = 0
+        self.model.train()
+        for i in range(epochs):
+            epoch_loss = []
+            # j = 0
+            for batch in train_loader:
+                self.optimizer.zero_grad()
+                output, encoder_output, decoder_output, attn, attn_weights, emb_enc, emb_dec = self.model(batch)
+                loss: Tensor = self.loss(output[:, :, :].view(-1, 3), batch['outputs'][:, :, 0].flatten().float())
+                n_iter += 1
+                loss.backward()
+                epoch_loss.append(loss.item())
+                self.optimizer.step()
+                # j += 1
+
+                # # update lr every 10000 iterations
+                # if n_iter % update_lr == 0 and n_iter != 0:
+                #     print("updating lr")
+                #     for param_group in self.optimizer.param_groups:
+                #         param_group['lr'] = param_group['lr'] * 0.9
+            self.train_losses.append(np.mean(epoch_loss))
+            print(np.mean(epoch_loss))
+
+            self.eval(val_loader)
+            self.save_checkpoint()
+            if self.counter == self.patience:
+                break
+
+    def eval(self, val_loader: DataLoader):
+        with torch.no_grad():
+            loss_val: List = []
+            for val_batch in val_loader:
+                output, encoder_ouput, decoder_output, attn, attn_weights, emb_enc, emb_dec = self.model(val_batch)
+                loss: Tensor = self.loss(output[:, :, :].view(-1, 3), val_batch['outputs'][:, :, 0].flatten().float())
+                loss_val.append(loss.item())
+            self.val_losses.append(np.mean(loss_val))
+            print(np.mean(loss_val))
+        self.mse_val = np.mean(loss_val)
+
+    def save_checkpoint(self):
+        if self.mse_val < self.min_val_mse:
+            self.min_val_mae: float = self.mse_val
+            print("Saving...")
+            print(self.exp_config.model_folder)
+            torch.save(self.model.state_dict(),
+                       os.path.join(self.exp_config.model_folder,
+                                    f"TemporalFusionTransformer_{self.exp_config.experiment}.pt"))
+            self.counter = 0
+        else:
+            self.counter += 1
+
+    def plot_metrics(self):
+        pass
+
+    def plot_losses(self):
+        pass
 
 
 def main(exp_name: str, data_csv_path: str):
     exp_config = ExperimentConfig(exp_name, 'outputs')
     data_formatter = exp_config.make_data_formatter()
-    print("*** Training from defined parameters for {} ***".format('electricity'))
+    print("*** Training from defined parameters for {} ***".format(exp_name))
     print("Loading & splitting data...")
     raw_data: DataFrame = pd.read_csv(data_csv_path, index_col=0)
     train, valid, test = data_formatter.split_data(raw_data)
@@ -65,7 +140,7 @@ def main(exp_name: str, data_csv_path: str):
     # define loss
     q_loss_func: QuantileLoss = QuantileLoss([0.1, 0.5, 0.9])
     # define optimizer
-    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     # start training cycle
     model.train()
     epochs = 10

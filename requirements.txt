@@ -5,4 +5,9 @@ pandas
 scikit-learn
 ipdb
 matplotlib==3.4.2
+SQLAlchemy==1.4.1
+psycopg2==2.8.6
+wget>=3.2
+pyunpack>=0.1.2
+python-dotenv
 # tensorflow==2.5.0rc0
