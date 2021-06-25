@@ -40,15 +40,21 @@ class TimeDistributed(nn.Module):
         super(TimeDistributed, self).__init__()
         self.module = module
         self.batch_first = batch_first
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.module.to(self.device)
 
     def forward(self, x: Tensor) -> Tensor:
-
+        if not next(self.module.parameters()).is_cuda:
+            print("Module is not on cuda")
+        if not x.is_cuda:
+            print("Input tensor is not on cuda")
         if len(x.size()) <= 2:
             return self.module(x)
 
         # Squash samples and timesteps into a single axis
         x_reshape = x.contiguous().view(-1, x.size(-1))  # (samples * timesteps, input_size)
-
+        # TODO fix this below
+        x_reshape = x_reshape.to(self.device)
         y = self.module(x_reshape)
 
         # We have to reshape Y
@@ -104,6 +110,8 @@ class GatedResidualNetwork(nn.Module):
         self.gate = TimeDistributed(GLU(self.output_size), batch_first=batch_first)
 
     def forward(self, x: Tensor, context: Tensor = None) -> Tensor:
+        if not x.is_cuda:
+            print("Input to GRN is not on cuda")
 
         if self.input_size != self.output_size:
             residual = self.skip_layer(x)
@@ -129,7 +137,8 @@ class PositionalEncoder(torch.nn.Module):
     def __init__(self, d_model: int, max_seq_len: int = 160):
         super().__init__()
         self.d_model = d_model
-        pe = torch.zeros(max_seq_len, d_model)
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        pe = torch.zeros(max_seq_len, d_model).to(self.device)
         for pos in range(max_seq_len):
             for i in range(0, d_model, 2):
                 pe[pos, i] = \
@@ -257,12 +266,12 @@ class TFT(nn.Module):
         self.lstm_encoder = nn.LSTM(input_size=self.hidden_size,
                                     hidden_size=self.hidden_size,
                                     num_layers=self.lstm_layers,
-                                    dropout=config['dropout'])
+                                    dropout=config['dropout']).to(self.device)
 
         self.lstm_decoder = nn.LSTM(input_size=self.hidden_size,
                                     hidden_size=self.hidden_size,
                                     num_layers=self.lstm_layers,
-                                    dropout=config['dropout'])
+                                    dropout=config['dropout']).to(self.device)
 
         self.post_lstm_gate = TimeDistributed(GLU(self.hidden_size))
         self.post_lstm_norm = TimeDistributed(nn.BatchNorm1d(self.hidden_size))
@@ -272,7 +281,7 @@ class TFT(nn.Module):
 
         self.position_encoding = PositionalEncoder(self.hidden_size, self.seq_length)
 
-        self.multihead_attn = nn.MultiheadAttention(self.hidden_size, self.attn_heads)
+        self.multihead_attn = nn.MultiheadAttention(self.hidden_size, self.attn_heads).to(self.device)
         self.post_attn_gate = TimeDistributed(GLU(self.hidden_size))
 
         self.post_attn_norm = TimeDistributed(nn.BatchNorm1d(self.hidden_size, self.hidden_size))
@@ -325,9 +334,12 @@ class TFT(nn.Module):
         return embeddings.view(-1, x.size(0), embeddings.size(2))
 
     def encode(self, x: Tensor, hidden=None):
-
+        if not next(self.lstm_encoder.parameters()).is_cuda:
+            print("LSTM encoder is not on cuda")
         if hidden is None:
             hidden = self.init_hidden()
+            if not hidden.is_cuda:
+                print("Hidden tensor is not on cuda")
 
         output, (hidden, cell) = self.lstm_encoder(x, (hidden, hidden))
 
