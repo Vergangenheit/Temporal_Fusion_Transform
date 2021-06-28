@@ -30,6 +30,7 @@ class Trainer:
         self.train_losses = []
         self.val_losses = []
         self.counter: int = 0
+        self.patience: int = 10
         # self.mse_val: float = 0
         self.min_val_mse: float = 9999
         self.exp_config = exp_config
@@ -57,7 +58,7 @@ class Trainer:
                 #     for param_group in self.optimizer.param_groups:
                 #         param_group['lr'] = param_group['lr'] * 0.9
             self.train_losses.append(np.mean(epoch_loss))
-            print(np.mean(epoch_loss))
+            print("Epoch mean train loss ", np.mean(epoch_loss))
 
             self.eval(val_loader)
             self.save_checkpoint()
@@ -73,6 +74,7 @@ class Trainer:
                 loss: Tensor = self.loss(output[:, :, :].view(-1, 3), val_targets[:, :, 0].flatten().float())
                 loss_val.append(loss.item())
             self.val_losses.append(np.mean(loss_val))
+            print("Epoch mean validation loss ", np.mean(loss_val))
             # print(np.mean(loss_val))
         self.mse_val = np.mean(loss_val)
 
