@@ -340,7 +340,8 @@ class TFT(nn.Module):
             hidden = self.init_hidden()
             if not hidden.is_cuda:
                 print("Hidden tensor is not on cuda")
-
+        # TODO remove below
+        print("Input size vector to lstm_encoder is ", x.size())
         output, (hidden, cell) = self.lstm_encoder(x, (hidden, hidden))
 
         return output, hidden
