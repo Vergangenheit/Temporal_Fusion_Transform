@@ -115,8 +115,7 @@ def main(exp_name: str, data_csv_path: str):
     print("Loading & splitting data...")
     raw_data: DataFrame = pd.read_csv(data_csv_path, index_col=0)
     train, valid, test = data_formatter.split_data(raw_data)
-    # train_samples, valid_samples = data_formatter.get_num_samples_for_calibration(
-    # )
+    train_samples, valid_samples = data_formatter.get_num_samples_for_calibration()
     # Sets up default params
     fixed_params: Dict = data_formatter.get_experiment_params()
     params: Dict = data_formatter.get_default_model_params()
@@ -132,10 +131,10 @@ def main(exp_name: str, data_csv_path: str):
     max_samples = 1000
     input_size = 5
     elect_train: TSDataset = ts_dataset.TSDataset(id_col, static_cols, time_col, input_cols,
-                                                  target_col, time_steps, 10000,
+                                                  target_col, time_steps, train_samples,
                                                   input_size, num_encoder_steps, 1, output_size, train)
     elect_valid: TSDataset = ts_dataset.TSDataset(id_col, static_cols, time_col, input_cols,
-                                                  target_col, time_steps, 1000,
+                                                  target_col, time_steps, valid_samples,
                                                   input_size, num_encoder_steps, 1, output_size, valid)
     batch_size = 64
     train_loader = DataLoader(
