@@ -6,7 +6,7 @@ from torch import nn, device, Tensor
 import math
 import torch
 import ipdb
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class QuantileLoss(nn.Module):
@@ -292,7 +292,9 @@ class TFT(nn.Module):
 
         self.output_layer = TimeDistributed(nn.Linear(self.hidden_size, self.num_quantiles), batch_first=True)
 
-    def init_hidden(self) -> Tensor:
+    def init_hidden(self, bs: Optional[int] = None) -> Tensor:
+        if bs is not None:
+            return torch.zeros(self.lstm_layers, bs, self.hidden_size, device=self.device)
         return torch.zeros(self.lstm_layers, self.batch_size, self.hidden_size, device=self.device)
 
     def apply_embedding(self, x, static_embedding, apply_masking):
@@ -337,11 +339,10 @@ class TFT(nn.Module):
         if not next(self.lstm_encoder.parameters()).is_cuda:
             print("LSTM encoder is not on cuda")
         if hidden is None:
-            hidden = self.init_hidden()
+            hidden = self.init_hidden(bs=x.shape[1])
             if not hidden.is_cuda:
                 print("Hidden tensor is not on cuda")
-        # TODO remove below
-        print("Input size vector to lstm_encoder is ", x.size())
+
         output, (hidden, cell) = self.lstm_encoder(x, (hidden, hidden))
 
         return output, hidden
