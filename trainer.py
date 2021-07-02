@@ -97,15 +97,13 @@ class Trainer:
         fig1: Figure = plt.figure()
         plt.semilogy(range(len(self.train_losses)), self.train_losses)
         plt.title("train Loss per epoch")
-        plt.show()
-        plt.close(fig1)
+        plt.savefig(os.path.join(self.exp_config.model_folder, 'train_losses.png'))
 
         # plot validation losses
         fig2: Figure = plt.figure()
         plt.semilogy(range(len(self.val_losses)), self.val_losses)
         plt.title("validation Loss per epoch")
-        plt.show()
-        plt.close(fig2)
+        plt.savefig(os.path.join(self.exp_config.model_folder, 'valid_losses.png'))
 
 
 def main(exp_name: str, data_csv_path: str):
