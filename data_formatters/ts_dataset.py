@@ -4,6 +4,7 @@ import numpy as np
 from typing import List, Dict
 from pandas import DataFrame
 from numpy import ndarray
+from collections import OrderedDict
 
 
 class TSDataset(Dataset):
@@ -22,7 +23,8 @@ class TSDataset(Dataset):
         print('Getting valid sampling locations.')
 
         valid_sampling_locations: List = []
-        split_data_map: Dict = {}
+        # split_data_map: Dict = {}
+        split_data_map: OrderedDict = OrderedDict()
         for identifier, df in data.groupby(id_col):
             num_entries: int = len(df)
             if num_entries >= self.time_steps:
